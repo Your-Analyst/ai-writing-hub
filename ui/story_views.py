@@ -108,9 +108,9 @@ def render_view_stories():
     new_tag = st.text_input(
         "Add a tag",
         placeholder="fantasy, dark fantasy, slow burn, political intrigue",
-        key="view_story_new_tag",
+        key=f"view_story_new_tag_{story_id}",
     )
-    if st.button("Add Tag", key="add_tag_btn"):
+    if st.button("Add Tag", key=f"add_tag_btn_{story_id}"):
         if new_tag.strip():
             add_tag(story_id, new_tag)
             st.success("Tag added.")
@@ -121,16 +121,19 @@ def render_view_stories():
     st.markdown('<div class="soft-card">', unsafe_allow_html=True)
     st.markdown('<div class="section-title">Add Chapter</div>', unsafe_allow_html=True)
 
-    chapter_title = st.text_input("Chapter title", key="new_chapter_title")
-    chapter_content = st.text_area("Chapter content", height=260, key="new_chapter_content")
+    with st.form(f"create_chapter_form_{story_id}", clear_on_submit=True):
+        chapter_title = st.text_input("Chapter title")
+        chapter_content = st.text_area("Chapter content", height=260)
 
-    if st.button("Save Chapter 🖋️", key="save_chapter_btn"):
-        if chapter_content.strip():
-            create_chapter(story_id, chapter_title, chapter_content)
-            st.success("Chapter saved.")
-            st.rerun()
-        else:
-            st.error("Chapter content is required.")
+        submitted_chapter = st.form_submit_button("Save Chapter 🖋️")
+
+        if submitted_chapter:
+            if chapter_content.strip():
+                create_chapter(story_id, chapter_title, chapter_content)
+                st.success("Chapter saved.")
+                st.rerun()
+            else:
+                st.error("Chapter content is required.")
 
     st.markdown("</div>", unsafe_allow_html=True)
 
@@ -174,12 +177,12 @@ def render_export():
     col1, col2 = st.columns(2)
 
     with col1:
-        if st.button("Export to DOCX 📄", key="export_docx_btn"):
+        if st.button("Export to DOCX 📄", key=f"export_docx_btn_{story_id}"):
             path = export_story_to_docx(story, tags, characters, world_notes, chapters)
             st.success(f"DOCX exported to: {path}")
 
     with col2:
-        if st.button("Export to PDF 🧾", key="export_pdf_btn"):
+        if st.button("Export to PDF 🧾", key=f"export_pdf_btn_{story_id}"):
             path = export_story_to_pdf(story, tags, characters, world_notes, chapters)
             st.success(f"PDF exported to: {path}")
 
