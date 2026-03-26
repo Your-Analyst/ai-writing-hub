@@ -43,35 +43,55 @@ def render_view_stories():
     tags = get_tags(story_id)
     chapters = get_chapters(story_id)
 
+    confirm_key = f"show_delete_confirm_{story_id}"
+    checkbox_key = f"confirm_delete_checkbox_{story_id}"
+
+    if confirm_key not in st.session_state:
+        st.session_state[confirm_key] = False
+
     st.markdown('<div class="soft-card">', unsafe_allow_html=True)
 
-    col1, col2 = st.columns([4, 1])
+    title_col, delete_col = st.columns([4, 1])
 
-    with col1:
+    with title_col:
         st.markdown(f'<div class="section-title">📖 {story["title"]}</div>', unsafe_allow_html=True)
 
-    with col2:
-        if st.button("🗑️ Delete Story", key=f"delete_story_btn_{story_id}"):
-            st.session_state["confirm_delete_story"] = story_id
+    with delete_col:
+        if st.button("🗑️ Delete Story", key=f"show_delete_controls_{story_id}"):
+            st.session_state[confirm_key] = True
+            st.rerun()
 
     st.write(f"**Genre:** {story['genre'] or 'N/A'}")
     st.write(f"**Summary:** {story['summary'] or 'No summary yet.'}")
 
-    if st.session_state.get("confirm_delete_story") == story_id:
-        st.warning("Are you sure you want to delete this story? This cannot be undone.")
+    if st.session_state.get(confirm_key, False):
+        st.markdown('<hr class="soft-divider">', unsafe_allow_html=True)
+        st.warning("Deleting this story will also remove its chapters, tags, characters, and world notes.")
 
-        confirm_col1, confirm_col2 = st.columns(2)
+        confirm_checked = st.checkbox(
+            "I understand this cannot be undone",
+            key=checkbox_key,
+        )
 
-        with confirm_col1:
-            if st.button("Yes, delete it", key=f"confirm_delete_btn_{story_id}"):
-                delete_story(story_id)
-                st.session_state["confirm_delete_story"] = None
-                st.success("Story deleted.")
-                st.rerun()
+        confirm_col, cancel_col = st.columns(2)
 
-        with confirm_col2:
-            if st.button("Cancel", key=f"cancel_delete_btn_{story_id}"):
-                st.session_state["confirm_delete_story"] = None
+        with confirm_col:
+            if st.button("Yes, permanently delete", key=f"confirm_delete_story_{story_id}"):
+                if confirm_checked:
+                    delete_story(story_id)
+                    st.session_state[confirm_key] = False
+                    if checkbox_key in st.session_state:
+                        del st.session_state[checkbox_key]
+                    st.success("Story deleted.")
+                    st.rerun()
+                else:
+                    st.error("Please check the confirmation box first.")
+
+        with cancel_col:
+            if st.button("Cancel", key=f"cancel_delete_story_{story_id}"):
+                st.session_state[confirm_key] = False
+                if checkbox_key in st.session_state:
+                    del st.session_state[checkbox_key]
                 st.rerun()
 
     st.markdown('<hr class="soft-divider">', unsafe_allow_html=True)
@@ -122,7 +142,9 @@ def render_view_stories():
                     disabled=True,
                     key=f"chapter_preview_{chapter['id']}",
                 )
-                st.caption(f"Updated: {chapter['updated_at']}")
+
+                updated_at = chapter["updated_at"] if "updated_at" in chapter.keys() else "N/A"
+                st.caption(f"Updated: {updated_at}")
 
     st.markdown("</div>", unsafe_allow_html=True)
 

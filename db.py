@@ -11,6 +11,10 @@ def get_connection():
     return conn
 
 
+def now_str():
+    return datetime.utcnow().isoformat(timespec="seconds")
+
+
 def init_db():
     with closing(get_connection()) as conn, conn:
         conn.execute("""
@@ -83,10 +87,6 @@ def init_db():
         """)
 
 
-def now_str():
-    return datetime.utcnow().isoformat(timespec="seconds")
-
-
 # ----------------------------
 # Stories
 # ----------------------------
@@ -113,6 +113,23 @@ def get_story(story_id: int):
     with closing(get_connection()) as conn:
         cur = conn.execute("SELECT * FROM stories WHERE id = ?", (story_id,))
         return cur.fetchone()
+
+
+def delete_story(story_id: int):
+    with closing(get_connection()) as conn, conn:
+        chapter_ids = conn.execute(
+            "SELECT id FROM chapters WHERE story_id = ?",
+            (story_id,)
+        ).fetchall()
+
+        for row in chapter_ids:
+            conn.execute("DELETE FROM chapter_versions WHERE chapter_id = ?", (row["id"],))
+
+        conn.execute("DELETE FROM chapters WHERE story_id = ?", (story_id,))
+        conn.execute("DELETE FROM story_tags WHERE story_id = ?", (story_id,))
+        conn.execute("DELETE FROM characters WHERE story_id = ?", (story_id,))
+        conn.execute("DELETE FROM world_notes WHERE story_id = ?", (story_id,))
+        conn.execute("DELETE FROM stories WHERE id = ?", (story_id,))
 
 
 # ----------------------------
@@ -158,6 +175,7 @@ def append_to_chapter(chapter_id: int, additional_text: str):
     chapter = get_chapter(chapter_id)
     if not chapter:
         return
+
     current = chapter["content"] or ""
     updated = f"{current.rstrip()}\n\n{additional_text.strip()}"
     update_chapter_content(chapter_id, updated)
@@ -171,6 +189,7 @@ def add_tag(story_id: int, tag_name: str):
     clean_tag = tag_name.strip().lower()
     if not clean_tag:
         return
+
     with closing(get_connection()) as conn, conn:
         conn.execute("""
             INSERT OR IGNORE INTO story_tags (story_id, tag_name)
@@ -268,18 +287,3 @@ def get_chapter_versions(chapter_id: int):
             ORDER BY id DESC
         """, (chapter_id,))
         return cur.fetchall()
-    
-    def delete_story(story_id: int):
-        conn = get_connection()
-        cur = conn.cursor()
-
-        # delete dependent records first (if foreign keys not cascading)
-        cur.execute("DELETE FROM chapters WHERE story_id = ?", (story_id,))
-        cur.execute("DELETE FROM story_tags WHERE story_id = ?", (story_id,))
-        cur.execute("DELETE FROM characters WHERE story_id = ?", (story_id,))
-        cur.execute("DELETE FROM world_notes WHERE story_id = ?", (story_id,))
-
-        cur.execute("DELETE FROM stories WHERE id = ?", (story_id,))
-
-        conn.commit()
-        conn.close()
