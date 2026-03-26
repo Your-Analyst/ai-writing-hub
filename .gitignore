@@ -1,0 +1,21 @@
+# Python
+__pycache__/
+*.pyc
+
+# Virtual env
+venv/
+
+# Database
+stories.db
+
+# Streamlit secrets
+.streamlit/secrets.toml
+
+# Exports
+exports/
+*.pdf
+*.docx
+
+# OS junk
+.DS_Store
+Thumbs.db
