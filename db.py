@@ -20,7 +20,7 @@ def init_db():
         conn.execute("""
             CREATE TABLE IF NOT EXISTS stories (
                 id INTEGER PRIMARY KEY AUTOINCREMENT,
-                title TEXT NOT NULL,
+                title TEXT NOT NULL UNIQUE,
                 genre TEXT,
                 summary TEXT,
                 created_at TEXT NOT NULL
@@ -91,12 +91,24 @@ def init_db():
 # Stories
 # ----------------------------
 
-def create_story(title: str, genre: str, summary: str) -> int:
+def create_story(title: str, genre: str, summary: str):
+    clean_title = title.strip()
+    clean_genre = genre.strip()
+    clean_summary = summary.strip()
+
     with closing(get_connection()) as conn, conn:
+        existing = conn.execute(
+            "SELECT id FROM stories WHERE LOWER(title) = LOWER(?)",
+            (clean_title,)
+        ).fetchone()
+
+        if existing:
+            return None
+
         cur = conn.execute("""
             INSERT INTO stories (title, genre, summary, created_at)
             VALUES (?, ?, ?, ?)
-        """, (title.strip(), genre.strip(), summary.strip(), now_str()))
+        """, (clean_title, clean_genre, clean_summary, now_str()))
         return cur.lastrowid
 
 
@@ -116,27 +128,33 @@ def get_story(story_id: int):
 
 
 def delete_story(story_id: int):
-    with closing(get_connection()) as conn, conn:
-        chapter_ids = conn.execute(
-            "SELECT id FROM chapters WHERE story_id = ?",
-            (story_id,)
-        ).fetchall()
+    conn = get_connection()
+    cur = conn.cursor()
 
-        for row in chapter_ids:
-            conn.execute("DELETE FROM chapter_versions WHERE chapter_id = ?", (row["id"],))
+    chapter_ids = cur.execute(
+        "SELECT id FROM chapters WHERE story_id = ?",
+        (story_id,)
+    ).fetchall()
 
-        conn.execute("DELETE FROM chapters WHERE story_id = ?", (story_id,))
-        conn.execute("DELETE FROM story_tags WHERE story_id = ?", (story_id,))
-        conn.execute("DELETE FROM characters WHERE story_id = ?", (story_id,))
-        conn.execute("DELETE FROM world_notes WHERE story_id = ?", (story_id,))
-        conn.execute("DELETE FROM stories WHERE id = ?", (story_id,))
+    for row in chapter_ids:
+        chapter_id = row["id"] if isinstance(row, sqlite3.Row) else row[0]
+        cur.execute("DELETE FROM chapter_versions WHERE chapter_id = ?", (chapter_id,))
+
+    cur.execute("DELETE FROM chapters WHERE story_id = ?", (story_id,))
+    cur.execute("DELETE FROM story_tags WHERE story_id = ?", (story_id,))
+    cur.execute("DELETE FROM characters WHERE story_id = ?", (story_id,))
+    cur.execute("DELETE FROM world_notes WHERE story_id = ?", (story_id,))
+    cur.execute("DELETE FROM stories WHERE id = ?", (story_id,))
+
+    conn.commit()
+    conn.close()
 
 
 # ----------------------------
 # Chapters
 # ----------------------------
 
-def create_chapter(story_id: int, chapter_title: str, content: str) -> int:
+def create_chapter(story_id: int, chapter_title: str, content: str):
     timestamp = now_str()
     with closing(get_connection()) as conn, conn:
         cur = conn.execute("""
@@ -211,7 +229,7 @@ def get_tags(story_id: int):
 # Characters
 # ----------------------------
 
-def add_character(story_id: int, name: str, role: str, description: str, goals: str, traits: str) -> int:
+def add_character(story_id: int, name: str, role: str, description: str, goals: str, traits: str):
     with closing(get_connection()) as conn, conn:
         cur = conn.execute("""
             INSERT INTO characters (story_id, name, role, description, goals, traits, created_at)
@@ -242,7 +260,7 @@ def get_characters(story_id: int):
 # World Notes
 # ----------------------------
 
-def add_world_note(story_id: int, title: str, category: str, content: str) -> int:
+def add_world_note(story_id: int, title: str, category: str, content: str):
     with closing(get_connection()) as conn, conn:
         cur = conn.execute("""
             INSERT INTO world_notes (story_id, title, category, content, created_at)

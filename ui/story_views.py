@@ -19,17 +19,24 @@ def render_create_story():
     st.markdown('<div class="soft-card">', unsafe_allow_html=True)
     st.markdown('<div class="section-title">Create a New Story</div>', unsafe_allow_html=True)
 
-    title = st.text_input("Story title", key="create_story_title")
-    genre = st.text_input("Genre", key="create_story_genre")
-    summary = st.text_area("Summary", height=180, key="create_story_summary")
+    with st.form("create_story_form", clear_on_submit=True):
+        title = st.text_input("Story title")
+        genre = st.text_input("Genre")
+        summary = st.text_area("Summary", height=180)
 
-    if st.button("Save Story ✨", key="save_story_btn"):
-        if not title.strip():
-            st.error("A title is required.")
-        else:
-            story_id = create_story(title, genre, summary)
-            st.success(f"Story created successfully. ID: {story_id}")
-            st.rerun()
+        submitted = st.form_submit_button("Save Story ✨")
+
+        if submitted:
+            if not title.strip():
+                st.error("A title is required.")
+            else:
+                story_id = create_story(title, genre, summary)
+
+                if story_id is None:
+                    st.warning("A story with that title already exists.")
+                else:
+                    st.success(f"Story created successfully. ID: {story_id}")
+                    st.rerun()
 
     st.markdown("</div>", unsafe_allow_html=True)
 
