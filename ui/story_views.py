@@ -9,6 +9,7 @@ from db import (
     get_tags,
     get_characters,
     get_world_notes,
+    delete_story,
 )
 from export_utils import export_story_to_docx, export_story_to_pdf
 from ui.components import story_selector, render_tag_pills
@@ -43,9 +44,35 @@ def render_view_stories():
     chapters = get_chapters(story_id)
 
     st.markdown('<div class="soft-card">', unsafe_allow_html=True)
-    st.markdown(f'<div class="section-title">📖 {story["title"]}</div>', unsafe_allow_html=True)
+
+    col1, col2 = st.columns([4, 1])
+
+    with col1:
+        st.markdown(f'<div class="section-title">📖 {story["title"]}</div>', unsafe_allow_html=True)
+
+    with col2:
+        if st.button("🗑️ Delete Story", key=f"delete_story_btn_{story_id}"):
+            st.session_state["confirm_delete_story"] = story_id
+
     st.write(f"**Genre:** {story['genre'] or 'N/A'}")
     st.write(f"**Summary:** {story['summary'] or 'No summary yet.'}")
+
+    if st.session_state.get("confirm_delete_story") == story_id:
+        st.warning("Are you sure you want to delete this story? This cannot be undone.")
+
+        confirm_col1, confirm_col2 = st.columns(2)
+
+        with confirm_col1:
+            if st.button("Yes, delete it", key=f"confirm_delete_btn_{story_id}"):
+                delete_story(story_id)
+                st.session_state["confirm_delete_story"] = None
+                st.success("Story deleted.")
+                st.rerun()
+
+        with confirm_col2:
+            if st.button("Cancel", key=f"cancel_delete_btn_{story_id}"):
+                st.session_state["confirm_delete_story"] = None
+                st.rerun()
 
     st.markdown('<hr class="soft-divider">', unsafe_allow_html=True)
     st.write("**Tags**")
